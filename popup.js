@@ -203,4 +203,10 @@ function formatUsersToText(users) {
 
         return lines.join('\n');
     }).join('\n\n');
-} 
+}
+
+// 在文件末尾添加
+document.getElementById('switchVersion').addEventListener('click', () => {
+    chrome.action.setPopup({ popup: 'popup_pro.html' });
+    window.location.href = 'popup_pro.html';
+});

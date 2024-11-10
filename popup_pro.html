@@ -1,0 +1,169 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <style>
+        /* 复制原有样式并添加新样式 */
+        body {
+            width: 800px; /* 增加宽度 */
+            max-height: 700px;
+            padding: 10px;
+            font-family: Arial, sans-serif;
+            overflow-y: auto;
+        }
+        /* ... 其他样式保持不变 ... */
+        
+        .phone-number {
+            display: flex;
+            align-items: center;
+        }
+        
+        .csv-options {
+            margin: 10px 0;
+            padding: 10px;
+            background: #f6ffed;
+            border-radius: 4px;
+            border: 1px solid #b7eb8f;
+        }
+        
+        .version-tag {
+            position: fixed;
+            top: 10px;
+            right: 10px;
+            background: #722ed1;
+            color: white;
+            padding: 3px 8px;
+            border-radius: 4px;
+            font-size: 12px;
+        }
+        
+        /* 添加筛选和排序区域样式 */
+        .filter-section {
+            margin: 10px 0;
+            padding: 10px;
+            background: #f0f5ff;
+            border-radius: 4px;
+            border: 1px solid #d6e4ff;
+        }
+        
+        .filter-group {
+            display: flex;
+            align-items: center;
+            margin: 5px 0;
+            flex-wrap: wrap;
+            gap: 10px;
+        }
+        
+        .filter-input {
+            padding: 4px 8px;
+            border: 1px solid #d9d9d9;
+            border-radius: 4px;
+            width: 150px;
+        }
+        
+        .sort-select {
+            padding: 4px 8px;
+            border: 1px solid #d9d9d9;
+            border-radius: 4px;
+            background: white;
+        }
+        
+        .filter-label {
+            margin-right: 8px;
+            color: #666;
+            min-width: 60px;
+        }
+        
+        .filter-btn {
+            background: #1890ff;
+            color: white;
+            padding: 4px 12px;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+        }
+        
+        .filter-btn:hover {
+            background: #40a9ff;
+        }
+        
+        .reset-btn {
+            background: #ff4d4f;
+            color: white;
+            padding: 4px 12px;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            margin-left: 10px;
+        }
+        
+        .reset-btn:hover {
+            background: #ff7875;
+        }
+    </style>
+</head>
+<body>
+    <div class="version-tag">高级版</div>
+    <div class="stats">
+        <div>共采集到 <span id="totalUsers">0</span> 个用户</div>
+        <div>其中有手机号的用户: <span id="phoneUsers">0</span> 个</div>
+        <div>当前显示: <span id="displayUsers">0</span> 个</div>
+    </div>
+    
+    <div class="filter-section">
+        <div class="filter-group">
+            <span class="filter-label">排序方式:</span>
+            <select id="sortField" class="sort-select">
+                <option value="timestamp">采集时间</option>
+                <option value="username">用户名</option>
+                <option value="douyinId">抖音号</option>
+                <option value="fans">粉丝数</option>
+                <option value="likes">获赞数</option>
+            </select>
+            <select id="sortOrder" class="sort-select">
+                <option value="desc">降序</option>
+                <option value="asc">升序</option>
+            </select>
+            <select id="phoneFilter" class="sort-select">
+                <option value="all">全部用户</option>
+                <option value="hasPhone">有手机号</option>
+                <option value="noPhone">无手机号</option>
+            </select>
+        </div>
+        <div class="filter-group">
+            <span class="filter-label">筛选:</span>
+            <input type="text" id="filterUsername" placeholder="用户名" class="filter-input">
+            <input type="text" id="filterDouyinId" placeholder="抖音号" class="filter-input">
+            <input type="text" id="filterPhone" placeholder="手机号" class="filter-input">
+            <input type="text" id="filterWechat" placeholder="微信号" class="filter-input">
+        </div>
+        <div class="filter-group">
+            <button id="applyFilter" class="filter-btn">应用筛选</button>
+            <button id="resetFilter" class="reset-btn">重置</button>
+        </div>
+    </div>
+
+    <div class="progress-bar">
+        <div id="progress" class="progress" style="width: 0%"></div>
+    </div>
+    
+    <div class="csv-options">
+        <label>CSV导出选项：</label>
+        <input type="checkbox" id="includeHeaders" checked> 包含表头
+        <input type="checkbox" id="includeTimestamp" checked> 包含采集时间
+        <input type="checkbox" id="exportFiltered"> 仅导出筛选结果
+    </div>
+    
+    <div class="buttons">
+        <button id="startCollect" class="primary">开始采集</button>
+        <button id="stopCollect" class="secondary">停止采集</button>
+        <button id="exportCSV" class="secondary">导出CSV</button>
+        <button id="exportPhone" class="secondary">导出手机号</button>
+        <button id="clearData" class="secondary">清除数据</button>
+        <button id="switchToBasic" class="version-btn">切换到基础版</button>
+    </div>
+    <div class="user-list" id="userList"></div>
+
+    <script src="popup_pro.js"></script>
+</body>
+</html> 

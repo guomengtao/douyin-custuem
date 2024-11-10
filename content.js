@@ -1,3 +1,6 @@
+// 在文件最开头定义版本变量
+let currentVersion = 'basic'; // 默认使用基础版
+
 // 正则表达式匹配模式
 const patterns = {
     phone: /1[3-9]\d{9}/g,
@@ -9,6 +12,31 @@ const patterns = {
 let isCollecting = false;
 let collectedUsers = new Set();
 let savedUserList = [];
+
+// 检查 URL 参数来确定版本
+function checkVersion() {
+    const urlParams = new URLSearchParams(window.location.search);
+    if (urlParams.has('pro')) {
+        currentVersion = 'pro';
+        console.log('🚀 当前使用高级版');
+    } else {
+        currentVersion = 'basic';
+        console.log('🚀 当前使用基础版');
+    }
+}
+
+// 在初始化时检查版本
+checkVersion();
+
+// 添加 URL 变化监听
+let lastUrl = window.location.href;
+new MutationObserver(() => {
+    const url = window.location.href;
+    if (url !== lastUrl) {
+        lastUrl = url;
+        checkVersion();
+    }
+}).observe(document, { subtree: true, childList: true });
 
 // 立即加载保存的数据，不等待 DOMContentLoaded
 loadSavedData();
@@ -30,56 +58,25 @@ function checkExtensionContext() {
     return Boolean(chrome.runtime?.id);
 }
 
-// 修改加载数据函数，使其更可靠
+// 修改加载数据函数，支持不同版本
 async function loadSavedData() {
     try {
-        // 检查扩展上下文是否有效
-        if (!chrome.runtime?.id) {
-            console.log('扩展上下文无效，重新加载页面...');
-            window.location.reload();
-            return;
-        }
+        const version = document.location.href.includes('pro=true') ? 'pro' : 'basic';
+        console.log(`📂 正在加载${version === 'pro' ? '高级版' : '基础版'}数据...`);
 
-        // 尝试从 background 获取数据
-        const response = await new Promise((resolve) => {
-            chrome.runtime.sendMessage({ action: 'getSavedData' }, (response) => {
-                if (chrome.runtime.lastError) {
-                    resolve(null);
-                } else {
-                    resolve(response);
-                }
-            });
+        const response = await chrome.runtime.sendMessage({ 
+            action: 'getSavedData',
+            version: version
         });
-
+        
         if (response && response.savedUserList) {
             savedUserList = response.savedUserList;
             collectedUsers = new Set(response.collectedUsers);
-            console.log('从 background 加载数据成功:', savedUserList.length);
+            console.log(`✅ ${version === 'pro' ? '高级版' : '基础版'}数据加载成功，当前用户数: ${savedUserList.length}`);
             return;
         }
-
-        // 如果从 background 获取失败，尝试从本地存储获取
-        const result = await new Promise((resolve) => {
-            chrome.storage.local.get(['collectedUsers', 'savedUserList'], (result) => {
-                if (chrome.runtime.lastError) {
-                    resolve(null);
-                } else {
-                    resolve(result);
-                }
-            });
-        });
-
-        if (result?.savedUserList) {
-            savedUserList = result.savedUserList;
-            collectedUsers = new Set(result.collectedUsers);
-            console.log('从本地存储加载数据成功:', savedUserList.length);
-        } else {
-            console.log('没有找到保存的数据，初始化空数据');
-            savedUserList = [];
-            collectedUsers = new Set();
-        }
     } catch (error) {
-        console.log('加载数据时出错，初始化空数据:', error);
+        console.error('加载数据失败:', error);
         savedUserList = [];
         collectedUsers = new Set();
     }
@@ -172,7 +169,7 @@ function extractUserInfo() {
                el.querySelector('a[href*="/user/"]');
     });
     
-    console.log('找到用户卡片数量:', userCards.length);
+    console.log(`🔍 ${currentVersion === 'pro' ? '高级版' : '基础版'}找到用户卡片数量: ${userCards.length}`);
     const newUserList = [];
     
     userCards.forEach(async user => {
@@ -224,7 +221,7 @@ function extractUserInfo() {
 
             if (collectedUsers.has(userId)) return;
 
-            // 构建用户数据
+            // 构建用数据
             const userData = {
                 username: username || '未知',
                 douyinId: douyinId || '', // 只包含纯数字的抖音号
@@ -254,132 +251,173 @@ function extractUserInfo() {
         }
     });
 
-    console.log('本次提取用户数:', newUserList.length);
+    console.log(`📝 ${currentVersion === 'pro' ? '高级版' : '基础版'}本次提取用户数: ${newUserList.length}`);
     return newUserList;
 }
 
-// 修改消息监听器，添加数据获取处理
+// 修改消息监听器，支持版本区分
 chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
-    try {
-        if (!chrome.runtime?.id) {
-            console.log('扩展上下文无效，忽略消息');
-            return false;
+    if (request.action === 'setVersion') {
+        currentVersion = request.version;
+        // 更新 URL 参数
+        const url = new URL(window.location.href);
+        if (currentVersion === 'pro') {
+            url.searchParams.set('pro', 'true');
+        } else {
+            url.searchParams.delete('pro');
         }
-
-        if (request.action === 'getData') {
-            // 直接从 background 获取最新数据
-            chrome.runtime.sendMessage({ action: 'getSavedData' }, (response) => {
-                if (response && response.savedUserList) {
-                    savedUserList = response.savedUserList;
-                    collectedUsers = new Set(response.collectedUsers);
+        window.history.replaceState({}, '', url);
+        
+        console.log(`🔄 版本已切换为: ${currentVersion === 'pro' ? '高级版' : '基础版'}`);
+        loadSavedData(); // 重新加载对应版本的数据
+        sendResponse({ success: true });
+        return true;
+    }
+    
+    if (request.action === 'getData') {
+        // 直接从 background 获取最新数据
+        chrome.runtime.sendMessage({ action: 'getSavedData' }, (response) => {
+            if (response && response.savedUserList) {
+                savedUserList = response.savedUserList;
+                collectedUsers = new Set(response.collectedUsers);
+                sendResponse({ users: savedUserList });
+            } else {
+                // 如果从 background 获取失败，尝试从本地存储获取
+                chrome.storage.local.get(['collectedUsers', 'savedUserList'], (result) => {
+                    if (result.savedUserList) {
+                        savedUserList = result.savedUserList;
+                        collectedUsers = new Set(result.collectedUsers);
+                    }
                     sendResponse({ users: savedUserList });
-                } else {
-                    // 如果从 background 获取失败，尝试从本地存储获取
-                    chrome.storage.local.get(['collectedUsers', 'savedUserList'], (result) => {
-                        if (result.savedUserList) {
-                            savedUserList = result.savedUserList;
-                            collectedUsers = new Set(result.collectedUsers);
-                        }
-                        sendResponse({ users: savedUserList });
-                    });
-                }
-            });
-            return true; // 保持消息通道开放
-        }
-
-        if (request.action === 'collect') {
-            console.log('开始采集当前页面...');
-            isCollecting = true;
-            
-            (async () => {
-                try {
-                    // 先获取最新数据
-                    await loadSavedData();
-                    const newUsers = extractUserInfo();
-                    await saveCollectedData();
-                    console.log('采集完成，用户数:', savedUserList.length);
-                    sendResponse({ users: savedUserList });
-                } catch (error) {
-                    console.error('采集过程错误:', error);
-                    sendResponse({ error: error.message });
-                } finally {
-                    isCollecting = false;
-                }
-            })();
-            
-            return true;
-        }
-
-        if (request.action === 'stop') {
-            isCollecting = false;
-            sendResponse({ status: 'stopped' });
-        }
-
-        if (request.action === 'exportTXT') {
-            const result = exportToTXT(savedUserList); // 使用所有保存的用户数据
-            sendResponse({ status: result ? 'success' : 'error' });
-            return true;
-        }
-
-        if (request.action === 'clearData') {
-            collectedUsers.clear();
-            savedUserList = [];
-            chrome.storage.local.remove(['collectedUsers', 'savedUserList'], () => {
-                console.log('数据已清除');
-                sendResponse({ status: 'success' });
-            });
-            return true;
-        }
-
-        if (request.action === 'updateData') {
-            console.log('收到数据更新:', request.data.savedUserList.length);
-            if (request.data.collectedUsers) {
-                collectedUsers = new Set(request.data.collectedUsers);
+                });
             }
-            if (request.data.savedUserList) {
-                savedUserList = request.data.savedUserList;
+        });
+        return true; // 保持消息通道开放
+    }
+
+    if (request.action === 'collect') {
+        const version = request.version || 'basic';
+        console.log(`🚀 开始${version === 'pro' ? '高级版' : '基础版'}采集...`);
+        isCollecting = true;
+        
+        (async () => {
+            try {
+                await loadSavedData();
+                const newUsers = extractUserInfo();
+                await saveCollectedData();
+                console.log(`✅ ${version === 'pro' ? '高级版' : '基础版'}采集完成，本次采集用户数: ${newUsers.length}`);
+                sendResponse({ users: savedUserList });
+            } catch (error) {
+                console.error(`❌ ${version === 'pro' ? '高级版' : '基础版'}采集过程错误:`, error);
+                sendResponse({ error: error.message });
+            } finally {
+                isCollecting = false;
             }
-            sendResponse({ success: true });
-            return true;
+        })();
+        
+        return true;
+    }
+
+    if (request.action === 'stop') {
+        isCollecting = false;
+        sendResponse({ status: 'stopped' });
+    }
+
+    if (request.action === 'exportTXT') {
+        const result = exportToTXT(savedUserList); // 使用所有保存的用户数据
+        sendResponse({ status: result ? 'success' : 'error' });
+        return true;
+    }
+
+    if (request.action === 'clearData') {
+        collectedUsers.clear();
+        savedUserList = [];
+        chrome.storage.local.remove(['collectedUsers', 'savedUserList'], () => {
+            console.log('数据已清除');
+            sendResponse({ status: 'success' });
+        });
+        return true;
+    }
+
+    if (request.action === 'updateData') {
+        console.log('收到数据更新:', request.data.savedUserList.length);
+        if (request.data.collectedUsers) {
+            collectedUsers = new Set(request.data.collectedUsers);
         }
-    } catch (error) {
-        console.error('消息处理错误:', error);
-        return false;
+        if (request.data.savedUserList) {
+            savedUserList = request.data.savedUserList;
+        }
+        sendResponse({ success: true });
+        return true;
     }
 });
 
-// 修改数据保存函数的错误处理
+// 修改数据保存函数
 async function saveCollectedData() {
     if (!checkExtensionContext()) {
         console.error('Extension context invalid during data save');
         return;
     }
 
-    const dataToSave = {
-        collectedUsers: Array.from(collectedUsers),
-        savedUserList: savedUserList
-    };
+    // 获取当前版本
+    const version = document.location.href.includes('pro=true') ? 'pro' : 'basic';
+    console.log(`💾 正在保存${version === 'pro' ? '高级版' : '基础版'}数据...`);
 
     try {
-        // 同时保存到 background 和本地存储
-        await Promise.all([
-            chrome.runtime.sendMessage({
-                action: 'saveData',
-                data: dataToSave
-            }),
-            chrome.storage.local.set(dataToSave)
-        ]);
-        console.log('数据已保存到 background 和本地存储，当前用户数:', savedUserList.length);
+        // 构建要保存的数据
+        const dataToSave = {
+            collectedUsers: Array.from(collectedUsers),
+            savedUserList: savedUserList
+        };
+
+        // 发送到 background 保存
+        await chrome.runtime.sendMessage({
+            action: 'saveData',
+            data: dataToSave,
+            version: version // 明确指定版本
+        });
+
+        // 保存成功后输出日志
+        console.log(`✅ ${version === 'pro' ? '高级版' : '基础版'}数据保存成功，当前用户数: ${savedUserList.length}`);
+
+        // 获取并输出两个版本的数据统计
+        const basicData = await chrome.runtime.sendMessage({ 
+            action: 'getSavedData', 
+            version: 'basic' 
+        });
+        const proData = await chrome.runtime.sendMessage({ 
+            action: 'getSavedData', 
+            version: 'pro' 
+        });
+
+        console.log('📊 数据统计:', {
+            '基础版': {
+                '总用户数': basicData?.savedUserList?.length || 0,
+                '手机号用户': basicData?.savedUserList?.filter(u => u.phone)?.length || 0
+            },
+            '高级版': {
+                '总用户数': proData?.savedUserList?.length || 0,
+                '手机号用户': proData?.savedUserList?.filter(u => u.phone)?.length || 0
+            },
+            '当前使用版本': version
+        });
+
+        // 如果是高级版，确保数据已经保存到高级版数据库
+        if (version === 'pro') {
+            // 再次验证数据是否保存成功
+            const verifyData = await chrome.runtime.sendMessage({ 
+                action: 'getSavedData', 
+                version: 'pro' 
+            });
+            if (!verifyData?.savedUserList?.length) {
+                console.error('❌ 高级版数据保存验证失败，尝试重新保存');
+                setTimeout(() => saveCollectedData(), 1000);
+            }
+        }
+
     } catch (error) {
         console.error('保存数据失败:', error);
-        // 如果保存失败，至少尝试保存到本地存储
-        try {
-            await chrome.storage.local.set(dataToSave);
-            console.log('数据已保存到本地存储');
-        } catch (storageError) {
-            console.error('保存到本地存储也失败:', storageError);
-            setTimeout(() => saveCollectedData(), 1000);
-        }
+        setTimeout(() => saveCollectedData(), 1000);
     }
 }
 
@@ -520,3 +558,19 @@ document.addEventListener('DOMContentLoaded', () => {
     setupAutoReload();
     loadSavedData().catch(console.error);
 });
+
+// 修改统计信息输出
+function outputStats() {
+    console.log(`📊 ${currentVersion === 'pro' ? '高级版' : '基础版'}数据统计:`, {
+        '总用户数': savedUserList.length,
+        '手机号用户数': savedUserList.filter(user => user.phone).length,
+        '微信号用户数': savedUserList.filter(user => user.wechat).length
+    });
+}
+
+// 定期输出统计信息
+setInterval(() => {
+    if (document.visibilityState === 'visible') {
+        outputStats();
+    }
+}, 5000);

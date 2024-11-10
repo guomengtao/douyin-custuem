@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "抖音用户信息采集器",
-  "version": "1.0",
+  "version": "1.1.0",
   "description": "采集抖音用户主页的用户信息，包括用户名、抖音号和联系方式。支持筛选显示有手机号的用户。",
   "permissions": [
     "activeTab",

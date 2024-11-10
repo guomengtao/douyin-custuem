@@ -70,9 +70,47 @@
             border-radius: 10px;
             transition: width 0.3s ease;
         }
+        .version-switch {
+            position: fixed;
+            top: 10px;
+            right: 10px;
+            z-index: 101;
+        }
+        
+        .version-btn {
+            background: #ff4d4f;
+            color: white;
+            padding: 5px 10px;
+            border-radius: 4px;
+            border: none;
+            cursor: pointer;
+            font-size: 12px;
+        }
+        
+        .version-btn:hover {
+            background: #ff7875;
+        }
+
+        .copy-btn {
+            background: #52c41a;
+            color: white;
+            padding: 2px 8px;
+            border-radius: 3px;
+            border: none;
+            cursor: pointer;
+            margin-left: 10px;
+            font-size: 12px;
+        }
+
+        .copy-btn:hover {
+            background: #73d13d;
+        }
     </style>
 </head>
 <body>
+    <div class="version-switch">
+        <button id="switchVersion" class="version-btn">切换到高级版</button>
+    </div>
     <div class="stats">
         <div>共采集到 <span id="totalUsers">0</span> 个用户</div>
         <div>其中有手机号的用户: <span id="phoneUsers">0</span> 个</div>
